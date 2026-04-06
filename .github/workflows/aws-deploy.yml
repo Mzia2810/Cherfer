@@ -13,20 +13,48 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Deploy to EC2-1
+      # -------------------------
+      # Deploy to EC2 - 1
+      # -------------------------
+      - name: Copy files to EC2-1 (staging)
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST_1 }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "./*"
-          target: "/var/www/html"
+          target: "/home/ubuntu/app"
 
-      - name: Deploy to EC2-2
+      - name: Move files to nginx directory on EC2-1
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST_1 }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            sudo rm -rf /var/www/html/*
+            sudo cp -r /home/ubuntu/app/* /var/www/html/
+            sudo systemctl restart nginx
+
+      # -------------------------
+      # Deploy to EC2 - 2
+      # -------------------------
+      - name: Copy files to EC2-2 (staging)
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST_2 }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "./*"
-          target: "/var/www/html"
+          target: "/home/ubuntu/app"
+
+      - name: Move files to nginx directory on EC2-2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST_2 }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            sudo rm -rf /var/www/html/*
+            sudo cp -r /home/ubuntu/app/* /var/www/html/
+            sudo systemctl restart nginx
