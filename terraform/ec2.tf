@@ -4,14 +4,28 @@ resource "aws_instance" "web" {
 
   subnet_id              = aws_subnet.subnet1.id
   vpc_security_group_ids = [aws_security_group.web_sg.id]
+  associate_public_ip_address = true
+
+  iam_instance_profile = aws_iam_instance_profile.ssm_profile.name
 
   user_data = <<-EOF
               #!/bin/bash
               yum update -y
-              yum install -y httpd
-              systemctl start httpd
-              systemctl enable httpd
+              yum install -y httpd git
 
-              echo "<h1>🚀 DevOps Terraform Project</h1>" > /var/www/html/index.html
+              systemctl enable httpd
+              systemctl start httpd
+
+              cd /var/www/html
+              rm -rf *
+
+              # 🔥 YOUR WEBSITE FOLDER FROM GITHUB
+              git clone https://github.com/Mzia2810/Cherfer.git .
+
+              systemctl restart httpd
               EOF
+
+  tags = {
+    Name = "SSM-Web-Server"
+  }
 }
