@@ -1,60 +1,44 @@
-# name: Deploy Cherfer Website to EC2
+name: Build & Push Docker Image to ECR
 
-# on:
-#   push:
-#     branches:
-#       - main
+on:
+  push:
+    branches:
+      - main
 
-# jobs:
-#   deploy:
-#     runs-on: ubuntu-latest
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
 
-#     steps:
-#       - name: Checkout Code
-#         uses: actions/checkout@v3
+    steps:
+      # 1. Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-#       # -------------------------
-#       # Deploy to EC2 - 1
-#       # -------------------------
-#       - name: Copy files to EC2-1 (staging)
-#         uses: appleboy/scp-action@v0.1.7
-#         with:
-#           host: ${{ secrets.EC2_HOST_1 }}
-#           username: ${{ secrets.EC2_USER }}
-#           key: ${{ secrets.SSH_PRIVATE_KEY }}
-#           source: "./*"
-#           target: "/home/ubuntu/app"
+      # 2. Configure AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-#       - name: Move files to nginx directory on EC2-1
-#         uses: appleboy/ssh-action@v1.0.3
-#         with:
-#           host: ${{ secrets.EC2_HOST_1 }}
-#           username: ${{ secrets.EC2_USER }}
-#           key: ${{ secrets.SSH_PRIVATE_KEY }}
-#           script: |
-#             sudo rm -rf /var/www/html/*
-#             sudo cp -r /home/ubuntu/app/* /var/www/html/
-#             sudo systemctl restart nginx
+      # 3. Login to Amazon ECR
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
+          docker login --username AWS --password-stdin ${{ secrets.ECR_URI }}
 
-#       # -------------------------
-#       # Deploy to EC2 - 2
-#       # -------------------------
-#       - name: Copy files to EC2-2 (staging)
-#         uses: appleboy/scp-action@v0.1.7
-#         with:
-#           host: ${{ secrets.EC2_HOST_2 }}
-#           username: ${{ secrets.EC2_USER }}
-#           key: ${{ secrets.SSH_PRIVATE_KEY }}
-#           source: "./*"
-#           target: "/home/ubuntu/app"
+      # 4. Build Docker image
+      - name: Build Docker image
+        run: |
+          docker build -t my-web-app .
 
-#       - name: Move files to nginx directory on EC2-2
-#         uses: appleboy/ssh-action@v1.0.3
-#         with:
-#           host: ${{ secrets.EC2_HOST_2 }}
-#           username: ${{ secrets.EC2_USER }}
-#           key: ${{ secrets.SSH_PRIVATE_KEY }}
-#           script: |
-#             sudo rm -rf /var/www/html/*
-#             sudo cp -r /home/ubuntu/app/* /var/www/html/
-#             sudo systemctl restart nginx
+      # 5. Tag image for ECR
+      - name: Tag Docker image
+        run: |
+          docker tag my-web-app:latest ${{ secrets.ECR_URI }}:latest
+
+      # 6. Push image to ECR
+      - name: Push Docker image
+        run: |
+          docker push ${{ secrets.ECR_URI }}:latest
